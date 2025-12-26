@@ -43,7 +43,7 @@ export default function PromptEditor({ value, onChange, onReset, provider }) {
                     <div className="mt-2 flex justify-between items-center text-xs text-gray-500">
                         <span>{value.length} caracteres</span>
                         <span className="text-gray-400">
-                            Usa {{ "{{"}}CONTENT{{ "}}"}} donde quieras insertar el contenido del documento
+                            Usa {`{{CONTENT}}`} donde quieras insertar el contenido del documento
                         </span>
                     </div>
 
