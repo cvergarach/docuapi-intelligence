@@ -1,6 +1,6 @@
 /**
  * Detecta variables/placeholders en strings
- * Formatos soportados: {{variable}}, {variable}, $variable, :variable
+ * Formatos soportados: {{variable}}, {variable}, [variable]
  */
 class VariableDetector {
     /**
@@ -27,6 +27,18 @@ class VariableDetector {
                 const varName = match.replace(/\{|\}/g, '').trim();
                 // Evitar JSON objects
                 if (!varName.includes(':') && !varName.includes(',')) {
+                    variables.add(varName);
+                }
+            });
+        }
+
+        // Detectar [variable]
+        const bracketMatches = text.match(/\[([^\]]+)\]/g);
+        if (bracketMatches) {
+            bracketMatches.forEach(match => {
+                const varName = match.replace(/\[|\]/g, '').trim();
+                // Evitar arrays numéricos y listas
+                if (!varName.match(/^\d+$/) && !varName.includes(',')) {
                     variables.add(varName);
                 }
             });
@@ -84,10 +96,15 @@ class VariableDetector {
         let result = text;
 
         Object.entries(values).forEach(([key, value]) => {
+            // Escapar caracteres especiales en el nombre de la variable
+            const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
             // Reemplazar {{key}}
-            result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value);
+            result = result.replace(new RegExp(`\\{\\{${escapedKey}\\}\\}`, 'g'), value);
             // Reemplazar {key}
-            result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+            result = result.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), value);
+            // Reemplazar [key]
+            result = result.replace(new RegExp(`\\[${escapedKey}\\]`, 'g'), value);
         });
 
         return result;
