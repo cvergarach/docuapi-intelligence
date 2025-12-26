@@ -1,4 +1,6 @@
 const axios = require('axios');
+const VariableDetector = require('../utils/variableDetector');
+const ResponseTranslator = require('../services/responseTranslator');
 
 class ApiController {
   /**
@@ -6,65 +8,79 @@ class ApiController {
    */
   async executeApi(req, res) {
     try {
-      const { api, credentials } = req.body;
+      const { api, credentials, variables } = req.body;
 
       if (!api || !api.url || !api.method) {
         return res.status(400).json({
           success: false,
-          error: 'Datos de API incompletos'
+          error: 'Datos de API incompletos',
+          humanMessage: '❌ La información de la API está incompleta. Falta la URL o el método HTTP.'
         });
       }
 
       console.log(`🚀 Executing API: ${api.method} ${api.url}`);
 
-      // Preparar headers
-      const headers = { ...api.headers };
+      // Detectar variables requeridas
+      const detectedVars = VariableDetector.detectApiVariables(api);
+      console.log(`📝 Variables detected:`, detectedVars);
 
-      // Inyectar credenciales en headers si es necesario
-      if (credentials && api.requiredCredentials) {
-        for (const credName of api.requiredCredentials) {
-          const credential = credentials.find(c => c.name === credName);
-          
-          if (credential && credential.value) {
-            // Detectar dónde va la credencial
-            if (credName.toLowerCase().includes('bearer') || credName.toLowerCase().includes('token')) {
-              headers['Authorization'] = `Bearer ${credential.value}`;
-            } else if (credName.toLowerCase().includes('api') && credName.toLowerCase().includes('key')) {
-              headers['X-API-Key'] = credential.value;
-              headers['Api-Key'] = credential.value;
-            }
-          }
-        }
-      }
+      // Preparar valores para reemplazo (credenciales + variables)
+      const allValues = {};
 
-      // Preparar body
-      let body = api.body || {};
-      
-      // Inyectar credenciales en body si es necesario
-      if (credentials) {
+      // Agregar credenciales
+      if (credentials && Array.isArray(credentials)) {
         credentials.forEach(cred => {
-          if (cred.value && body[cred.name]) {
-            body[cred.name] = cred.value;
+          if (cred.name && cred.value) {
+            allValues[cred.name] = cred.value;
           }
         });
       }
 
+      // Agregar variables
+      if (variables) {
+        Object.assign(allValues, variables);
+      }
+
+      // Validar que todas las variables tengan valor
+      const validation = VariableDetector.validateVariables(api, allValues);
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          error: 'Faltan variables requeridas',
+          humanMessage: `❌ Faltan datos necesarios:\n\n${validation.missing.map(v => `• ${v}`).join('\n')}\n\n**¿Qué hacer?**\nCompleta todos los campos requeridos antes de ejecutar.`,
+          missing: validation.missing,
+          required: validation.required
+        });
+      }
+
+      // Reemplazar variables en la API
+      const processedApi = VariableDetector.replaceApiVariables(api, allValues);
+      console.log(`✅ Variables replaced. Final URL: ${processedApi.url}`);
+
+      console.log(`🚀 Executing API: ${processedApi.method} ${processedApi.url}`);
+
+      // Preparar headers
+      const headers = { ...processedApi.headers };
+
+      // Preparar body
+      let body = processedApi.body || {};
+
       // Configuración de la petición
       const config = {
-        method: api.method.toLowerCase(),
-        url: api.url,
+        method: processedApi.method.toLowerCase(),
+        url: processedApi.url,
         headers: headers,
         timeout: 30000, // 30 segundos
         validateStatus: () => true // Aceptar cualquier status code
       };
 
       // Agregar params si existen
-      if (api.params && Object.keys(api.params).length > 0) {
-        config.params = api.params;
+      if (processedApi.params && Object.keys(processedApi.params).length > 0) {
+        config.params = processedApi.params;
       }
 
       // Agregar body para métodos que lo permiten
-      if (['post', 'put', 'patch'].includes(api.method.toLowerCase())) {
+      if (['post', 'put', 'patch'].includes(processedApi.method.toLowerCase())) {
         if (Object.keys(body).length > 0) {
           config.data = body;
         }
@@ -85,18 +101,24 @@ class ApiController {
 
       console.log(`✅ API Response: ${response.status} (${executionTime}ms)`);
 
+      // Traducir respuesta a lenguaje humano
+      const translated = ResponseTranslator.translateResponse(response, api);
+
       // Determinar si fue exitoso
       const isSuccess = response.status >= 200 && response.status < 300;
 
       res.json({
         success: isSuccess,
+        humanMessage: translated.humanMessage,
+        statusText: translated.statusText,
         data: {
           status: response.status,
           statusText: response.statusText,
           headers: response.headers,
           data: response.data,
           executionTime: executionTime,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          keyData: translated.keyData
         }
       });
 
@@ -106,8 +128,11 @@ class ApiController {
       // Manejar diferentes tipos de errores
       if (error.response) {
         // El servidor respondió con un código fuera del rango 2xx
+        const translated = ResponseTranslator.translateResponse(error.response, api);
         res.status(200).json({
           success: false,
+          humanMessage: translated.humanMessage,
+          statusText: translated.statusText,
           data: {
             status: error.response.status,
             statusText: error.response.statusText,
@@ -120,6 +145,7 @@ class ApiController {
         // La petición se hizo pero no hubo respuesta
         res.status(200).json({
           success: false,
+          humanMessage: '❌ No se pudo conectar con el servidor\n\n**Posibles causas:**\n• El servidor no está disponible\n• Problemas de red\n• URL incorrecta\n\n**¿Qué hacer?**\nVerifica la URL y tu conexión a internet.',
           data: {
             error: 'No se recibió respuesta del servidor',
             details: error.message
@@ -129,6 +155,7 @@ class ApiController {
         // Algo pasó al configurar la petición
         res.status(200).json({
           success: false,
+          humanMessage: '❌ Error al preparar la solicitud\n\n**Detalles:**\n' + error.message,
           data: {
             error: 'Error al configurar la petición',
             details: error.message
