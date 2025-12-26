@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import PromptEditor from './PromptEditor'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -11,6 +12,8 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash')
   const [models, setModels] = useState([])
   const [dragActive, setDragActive] = useState(false)
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [defaultPrompt, setDefaultPrompt] = useState('')
 
   // Cargar modelos disponibles
   useEffect(() => {
@@ -26,6 +29,25 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
     }
     fetchModels()
   }, [])
+
+  // Cargar prompt por defecto cuando cambia el modelo
+  useEffect(() => {
+    const fetchDefaultPrompt = async () => {
+      try {
+        const provider = selectedModel.startsWith('gemini-') ? 'gemini' : 'claude'
+        const response = await axios.get(`${API_URL}/api/prompts/default?provider=${provider}`)
+        if (response.data.success) {
+          setDefaultPrompt(response.data.prompt)
+          if (!customPrompt) {
+            setCustomPrompt(response.data.prompt)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading default prompt:', error)
+      }
+    }
+    fetchDefaultPrompt()
+  }, [selectedModel])
 
   const handleDrag = (e) => {
     e.preventDefault()
@@ -78,6 +100,9 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
     const formData = new FormData()
     formData.append('file', file)
     formData.append('model', selectedModel)
+    if (customPrompt && customPrompt !== defaultPrompt) {
+      formData.append('customPrompt', customPrompt)
+    }
 
     try {
       const response = await axios.post(`${API_URL}/api/documents/upload`, formData, {
@@ -199,6 +224,14 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
           </optgroup>
         </select>
       </div>
+
+      {/* Editor de Prompt */}
+      <PromptEditor
+        value={customPrompt}
+        onChange={setCustomPrompt}
+        onReset={() => setCustomPrompt(defaultPrompt)}
+        provider={selectedModel.startsWith('gemini-') ? 'google' : 'anthropic'}
+      />
 
       {/* Upload de archivo */}
       {uploadType === 'file' && (

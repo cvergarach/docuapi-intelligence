@@ -70,8 +70,10 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
+const promptRoutes = require('./routes/promptRoutes');
 app.use('/api/documents', documentRoutes);
 app.use('/api/execute', apiRoutes);
+app.use('/api/prompts', promptRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

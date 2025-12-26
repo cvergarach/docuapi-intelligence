@@ -46,6 +46,7 @@ class DocumentController {
       }
 
       const modelId = req.body.model || 'claude-sonnet-4-5-20250929';
+      const customPrompt = req.body.customPrompt || null;
 
       console.log(`📄 Processing document: ${req.file.originalname}`);
       console.log(`🤖 Using model: ${modelId}`);
@@ -82,7 +83,10 @@ class DocumentController {
 
       // Analizar con el servicio correspondiente
       console.log(`🧠 Analyzing with ${providerName}...`);
-      const analysis = await aiService.analyzeDocument(contentToAnalyze, modelId);
+      if (customPrompt) {
+        console.log('📝 Using custom prompt');
+      }
+      const analysis = await aiService.analyzeDocument(contentToAnalyze, modelId, customPrompt);
 
       // Generar ID único para esta análisis
       const analysisId = uuidv4();

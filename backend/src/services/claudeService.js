@@ -34,17 +34,16 @@ class ClaudeService {
   }
 
   /**
-   * Analiza el contenido del documento y extrae credenciales y APIs
+   * Obtener el prompt por defecto para análisis
    */
-  async analyzeDocument(content, modelId = 'claude-sonnet-4-5-20250929') {
-    try {
-      const prompt = `Analiza el siguiente documento y extrae TODA la información relacionada con:
+  getDefaultPrompt() {
+    return `Analiza el siguiente documento y extrae TODA la información relacionada con:
 
 1. **CREDENCIALES**: API Keys, tokens, usuarios, contraseñas, secrets, client IDs, client secrets, authorization headers, bearer tokens, etc.
 2. **APIs**: Endpoints, URLs, métodos HTTP, parámetros requeridos, headers necesarios, body de ejemplo, respuestas esperadas.
 
 DOCUMENTO:
-${content}
+{{CONTENT}}
 
 INSTRUCCIONES:
 - Identifica TODAS las credenciales mencionadas, incluso si están en ejemplos o comentarios
@@ -83,6 +82,16 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
 }
 
 NO incluyas markdown, NO incluyas explicaciones adicionales, SOLO el JSON.`;
+  }
+
+  /**
+   * Analiza el contenido del documento y extrae credenciales y APIs
+   */
+  async analyzeDocument(content, modelId = 'claude-sonnet-4-5-20250929', customPrompt = null) {
+    try {
+      // Usar prompt personalizado o el por defecto
+      const promptTemplate = customPrompt || this.getDefaultPrompt();
+      const prompt = promptTemplate.replace('{{CONTENT}}', content);
 
       const response = await this.client.messages.create({
         model: modelId,
@@ -100,10 +109,10 @@ NO incluyas markdown, NO incluyas explicaciones adicionales, SOLO el JSON.`;
       }
 
       let jsonText = textContent.text.trim();
-      
+
       // Limpiar markdown si está presente
       jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
+
       const analysis = JSON.parse(jsonText);
 
       return {
@@ -156,7 +165,7 @@ Responde ÚNICAMENTE con un JSON en este formato:
       const textContent = response.content.find(block => block.type === 'text');
       let jsonText = textContent.text.trim();
       jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
+
       return JSON.parse(jsonText);
 
     } catch (error) {
@@ -194,7 +203,7 @@ Responde con un JSON:
       const textContent = response.content.find(block => block.type === 'text');
       let jsonText = textContent.text.trim();
       jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      
+
       return JSON.parse(jsonText);
 
     } catch (error) {

@@ -77,17 +77,16 @@ class GeminiService {
     }
 
     /**
-     * Analiza el contenido del documento y extrae credenciales y APIs
+     * Obtener el prompt por defecto para análisis
      */
-    async analyzeDocument(content, modelId = 'gemini-2.5-flash') {
-        try {
-            const prompt = `Analiza el siguiente documento y extrae TODA la información relacionada con:
+    getDefaultPrompt() {
+        return `Analiza el siguiente documento y extrae TODA la información relacionada con:
 
 1. **CREDENCIALES**: API Keys, tokens, usuarios, contraseñas, secrets, client IDs, client secrets, authorization headers, bearer tokens, etc.
 2. **APIs**: Endpoints, URLs, métodos HTTP, parámetros requeridos, headers necesarios, body de ejemplo, respuestas esperadas.
 
 DOCUMENTO:
-${content}
+{{CONTENT}}
 
 INSTRUCCIONES:
 - Identifica TODAS las credenciales mencionadas, incluso si están en ejemplos o comentarios
@@ -126,6 +125,16 @@ Responde ÚNICAMENTE con un JSON válido en este formato exacto:
 }
 
 NO incluyas markdown, NO incluyas explicaciones adicionales, SOLO el JSON.`;
+    }
+
+    /**
+     * Analiza el contenido del documento y extrae credenciales y APIs
+     */
+    async analyzeDocument(content, modelId = 'gemini-2.5-flash', customPrompt = null) {
+        try {
+            // Usar prompt personalizado o el por defecto
+            const promptTemplate = customPrompt || this.getDefaultPrompt();
+            const prompt = promptTemplate.replace('{{CONTENT}}', content);
 
             const model = this.client.getGenerativeModel({ model: modelId });
             const result = await model.generateContent(prompt);
