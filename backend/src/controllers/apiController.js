@@ -1,5 +1,4 @@
 const axios = require('axios');
-const { VM } = require('vm2');
 
 class ApiController {
   /**
