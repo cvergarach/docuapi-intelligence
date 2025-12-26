@@ -36,13 +36,22 @@ app.use(cors({
 
     // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log(`✅ CORS: Allowed origin: ${origin}`);
-      callback(null, true);
-    } else {
-      console.log(`❌ CORS: Rejected origin: ${origin}`);
-      console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
-      callback(null, false); // Don't throw error, just reject
+      console.log(`✅ CORS: Allowed origin (exact match): ${origin}`);
+      return callback(null, true);
     }
+
+    // Check if origin is a Vercel preview deployment
+    // Vercel preview URLs follow pattern: https://docuapi-intelligence-*.vercel.app
+    const isVercelPreview = origin.match(/^https:\/\/docuapi-intelligence.*\.vercel\.app$/);
+    if (isVercelPreview) {
+      console.log(`✅ CORS: Allowed origin (Vercel preview): ${origin}`);
+      return callback(null, true);
+    }
+
+    // Reject all other origins
+    console.log(`❌ CORS: Rejected origin: ${origin}`);
+    console.log(`   Allowed origins: ${allowedOrigins.join(', ')}`);
+    callback(null, false); // Don't throw error, just reject
   },
   credentials: true
 }));
