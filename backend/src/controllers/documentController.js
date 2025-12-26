@@ -2,6 +2,8 @@ const documentService = require('../services/documentService');
 const claudeService = require('../services/claudeService');
 const geminiService = require('../services/geminiService');
 const { v4: uuidv4 } = require('uuid');
+const VariableDetector = require('../utils/variableDetector');
+const VariableClassifier = require('../utils/variableClassifier');
 
 // Almacenamiento en memoria para resultados (en producción, usar Redis o base de datos)
 const analysisCache = new Map();
@@ -110,12 +112,36 @@ class DocumentController {
 
       console.log('✅ Analysis completed successfully');
 
+      // Clasificar credenciales detectadas
+      const allCredentials = analysis.data.credentials || [];
+      const classifiedCreds = allCredentials.map(cred => ({
+        ...cred,
+        isCredential: VariableClassifier.isCredential(cred.name),
+        description: cred.description || VariableClassifier.getDescription(cred.name),
+        example: VariableClassifier.getExample(cred.name)
+      }));
+
+      // Clasificar variables en APIs
+      const classifiedApis = (analysis.data.apis || []).map(api => {
+        const variables = VariableDetector.detectApiVariables(api);
+        const classification = VariableClassifier.classify(variables);
+
+        return {
+          ...api,
+          variables: {
+            all: variables,
+            credentials: classification.credentials,
+            dynamic: classification.dynamicVariables
+          }
+        };
+      });
+
       res.json({
         success: true,
         analysisId: analysisId,
         data: {
-          credentials: analysis.data.credentials || [],
-          apis: analysis.data.apis || [],
+          credentials: classifiedCreds,
+          apis: classifiedApis,
           summary: analysis.data.summary || '',
           metadata: {
             document: documentResult.metadata,

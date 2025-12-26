@@ -59,13 +59,25 @@ export default function ApiExecutor({ apis, credentials: detectedCredentials }) 
   useEffect(() => {
     const vars = {};
     apis.forEach(api => {
-      const detected = detectApiVariables(api);
-      if (detected.length > 0) {
-        vars[api.name] = {};
-        detected.forEach(varName => {
-          // Inicializar con valor guardado si existe
-          vars[api.name][varName] = savedCredentials[varName]?.value || '';
-        });
+      // Usar clasificación del backend si está disponible
+      if (api.variables) {
+        // Solo variables dinámicas (no credenciales)
+        const dynamicVars = api.variables.dynamic || [];
+        if (dynamicVars.length > 0) {
+          vars[api.name] = {};
+          dynamicVars.forEach(varName => {
+            vars[api.name][varName] = '';
+          });
+        }
+      } else {
+        // Fallback: detectar manualmente
+        const detected = detectApiVariables(api);
+        if (detected.length > 0) {
+          vars[api.name] = {};
+          detected.forEach(varName => {
+            vars[api.name][varName] = savedCredentials[varName]?.value || '';
+          });
+        }
       }
     });
     setApiVariables(vars);
@@ -243,10 +255,10 @@ export default function ApiExecutor({ apis, credentials: detectedCredentials }) 
                   <p className="text-sm text-gray-600 mt-1">{api.description}</p>
                   <div className="flex items-center space-x-2 mt-2">
                     <span className={`px-2 py-1 text-xs font-bold rounded ${api.method === 'GET' ? 'bg-green-100 text-green-800' :
-                        api.method === 'POST' ? 'bg-blue-100 text-blue-800' :
-                          api.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
-                            api.method === 'DELETE' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
+                      api.method === 'POST' ? 'bg-blue-100 text-blue-800' :
+                        api.method === 'PUT' ? 'bg-yellow-100 text-yellow-800' :
+                          api.method === 'DELETE' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
                       }`}>
                       {api.method}
                     </span>
@@ -288,16 +300,10 @@ export default function ApiExecutor({ apis, credentials: detectedCredentials }) 
                   </h5>
                   <div className="space-y-3">
                     {vars.map(varName => {
-                      const isSaved = savedCredentials[varName];
                       return (
                         <div key={varName}>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             {varName}
-                            {isSaved && (
-                              <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
-                                ✓ Guardado
-                              </span>
-                            )}
                           </label>
                           <input
                             type="text"
@@ -310,6 +316,16 @@ export default function ApiExecutor({ apis, credentials: detectedCredentials }) 
                       );
                     })}
                   </div>
+                  {api.variables?.credentials && api.variables.credentials.length > 0 && (
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-800">
+                        💡 <strong>Credenciales necesarias:</strong> {api.variables.credentials.join(', ')}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Estas se toman automáticamente de tus credenciales guardadas
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -331,8 +347,8 @@ export default function ApiExecutor({ apis, credentials: detectedCredentials }) 
                   {/* Mensaje Humano */}
                   {results[api.name].humanMessage && (
                     <div className={`mb-3 p-4 rounded-lg ${results[api.name].success
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-red-50 border border-red-200'
+                      ? 'bg-green-50 border border-green-200'
+                      : 'bg-red-50 border border-red-200'
                       }`}>
                       <div className={`text-sm whitespace-pre-line ${results[api.name].success ? 'text-green-800' : 'text-red-800'
                         }`}>
