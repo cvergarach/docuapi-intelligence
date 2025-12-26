@@ -1,5 +1,6 @@
 const documentService = require('../services/documentService');
 const claudeService = require('../services/claudeService');
+const geminiService = require('../services/geminiService');
 const { v4: uuidv4 } = require('uuid');
 
 // Almacenamiento en memoria para resultados (en producción, usar Redis o base de datos)
@@ -7,14 +8,22 @@ const analysisCache = new Map();
 
 class DocumentController {
   /**
-   * Obtener modelos disponibles de Claude
+   * Obtener modelos disponibles de Claude y Gemini
    */
   async getModels(req, res) {
     try {
-      const models = claudeService.getAvailableModels();
+      const claudeModels = claudeService.getAvailableModels();
+      const geminiModels = geminiService.getAvailableModels();
+
+      // Combinar modelos de ambos proveedores
+      const allModels = [
+        ...Object.values(claudeModels).map(m => ({ ...m, provider: 'anthropic' })),
+        ...Object.values(geminiModels)
+      ];
+
       res.json({
         success: true,
-        models: Object.values(models)
+        models: allModels
       });
     } catch (error) {
       res.status(500).json({
@@ -66,9 +75,14 @@ class DocumentController {
         console.log(`📦 Using first chunk of ${chunks.length} total chunks`);
       }
 
-      // Analizar con Claude
-      console.log('🧠 Analyzing with Claude...');
-      const analysis = await claudeService.analyzeDocument(contentToAnalyze, modelId);
+      // Detectar proveedor basado en el ID del modelo
+      const isGemini = modelId.startsWith('gemini-');
+      const aiService = isGemini ? geminiService : claudeService;
+      const providerName = isGemini ? 'Gemini' : 'Claude';
+
+      // Analizar con el servicio correspondiente
+      console.log(`🧠 Analyzing with ${providerName}...`);
+      const analysis = await aiService.analyzeDocument(contentToAnalyze, modelId);
 
       // Generar ID único para esta análisis
       const analysisId = uuidv4();
@@ -160,9 +174,14 @@ class DocumentController {
         console.log(`📦 Using first chunk of ${chunks.length} total chunks`);
       }
 
-      // Analizar con Claude
-      console.log('🧠 Analyzing with Claude...');
-      const analysis = await claudeService.analyzeDocument(contentToAnalyze, modelId);
+      // Detectar proveedor basado en el ID del modelo
+      const isGemini = modelId.startsWith('gemini-');
+      const aiService = isGemini ? geminiService : claudeService;
+      const providerName = isGemini ? 'Gemini' : 'Claude';
+
+      // Analizar con el servicio correspondiente
+      console.log(`🧠 Analyzing with ${providerName}...`);
+      const analysis = await aiService.analyzeDocument(contentToAnalyze, modelId);
 
       // Generar ID único
       const analysisId = uuidv4();

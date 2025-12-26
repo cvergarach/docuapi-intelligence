@@ -8,7 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 export default function DocumentUpload({ onAnalysisComplete, onError, loading, setLoading }) {
   const [uploadType, setUploadType] = useState('file') // 'file' o 'url'
   const [url, setUrl] = useState('')
-  const [selectedModel, setSelectedModel] = useState('claude-sonnet-4-5-20250929')
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash')
   const [models, setModels] = useState([])
   const [dragActive, setDragActive] = useState(false)
 
@@ -153,21 +153,19 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
       <div className="flex space-x-4 mb-6">
         <button
           onClick={() => setUploadType('file')}
-          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-            uploadType === 'file'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${uploadType === 'file'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
         >
           📄 Subir Archivo
         </button>
         <button
           onClick={() => setUploadType('url')}
-          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-            uploadType === 'url'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
+          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${uploadType === 'url'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
         >
           🌐 Web Scraping
         </button>
@@ -176,7 +174,7 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
       {/* Selector de modelo */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Modelo de Claude
+          Modelo de IA
         </label>
         <select
           value={selectedModel}
@@ -184,22 +182,31 @@ export default function DocumentUpload({ onAnalysisComplete, onError, loading, s
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           disabled={loading}
         >
-          {models.map((model) => (
-            <option key={model.id} value={model.id}>
-              {model.name} - {model.description}
-            </option>
-          ))}
+          {/* Agrupar modelos por proveedor */}
+          <optgroup label="🤖 Claude (Anthropic)">
+            {models.filter(m => m.provider === 'anthropic').map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name} - {model.description}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="✨ Gemini (Google)">
+            {models.filter(m => m.provider === 'google').map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name} - {model.description}
+              </option>
+            ))}
+          </optgroup>
         </select>
       </div>
 
       {/* Upload de archivo */}
       {uploadType === 'file' && (
         <div
-          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-            dragActive
-              ? 'border-blue-500 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
+          className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${dragActive
+            ? 'border-blue-500 bg-blue-50'
+            : 'border-gray-300 hover:border-gray-400'
+            }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
