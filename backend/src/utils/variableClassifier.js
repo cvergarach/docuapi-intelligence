@@ -61,15 +61,46 @@ class VariableClassifier {
         const unknown = [];
 
         variables.forEach(varName => {
-            if (this.isCredential(varName)) {
-                credentials.push(varName);
-            } else if (this.isDynamicVariable(varName)) {
+            const lowerName = varName.toLowerCase();
+
+            // PRIORIDAD 1: Si contiene palabras de variables dinámicas, es variable
+            const hasDynamicKeyword = this.VARIABLE_KEYWORDS.some(keyword =>
+                lowerName.includes(keyword)
+            );
+
+            // PRIORIDAD 2: Si contiene palabras de credenciales, es credencial
+            const hasCredentialKeyword = this.CREDENTIAL_KEYWORDS.some(keyword =>
+                lowerName.includes(keyword)
+            );
+
+            // Casos especiales: "Ticket de Acceso" vs "Numero de la licitacion"
+            // Si tiene AMBOS keywords, decidir por contexto
+            if (hasDynamicKeyword && hasCredentialKeyword) {
+                // Si tiene "numero", "codigo", "id" -> es variable
+                if (lowerName.match(/numero|codigo|code|id/)) {
+                    console.log(`📝 Variable dinámica (tiene numero/codigo): ${varName}`);
+                    dynamicVars.push(varName);
+                } else {
+                    // Si tiene "ticket", "token", "key" -> es credencial
+                    console.log(`🔑 Credencial (tiene ticket/token/key): ${varName}`);
+                    credentials.push(varName);
+                }
+            } else if (hasDynamicKeyword) {
+                console.log(`📝 Variable dinámica: ${varName}`);
                 dynamicVars.push(varName);
+            } else if (hasCredentialKeyword) {
+                console.log(`🔑 Credencial: ${varName}`);
+                credentials.push(varName);
             } else {
                 // Si no está claro, asumir que es variable dinámica
+                console.log(`❓ Variable desconocida (asumiendo dinámica): ${varName}`);
                 dynamicVars.push(varName);
             }
         });
+
+        console.log(`\n📊 Clasificación final:`);
+        console.log(`  🔑 Credenciales: ${credentials.join(', ') || 'ninguna'}`);
+        console.log(`  📝 Variables dinámicas: ${dynamicVars.join(', ') || 'ninguna'}\n`);
 
         return {
             credentials,
