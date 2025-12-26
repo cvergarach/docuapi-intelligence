@@ -1,4 +1,5 @@
 # 🚀 DocuAPI Intelligence - Frontend
+#
 
 Frontend application para DocuAPI Intelligence, construido con Next.js 14 y React.
 
